@@ -8,6 +8,7 @@ function Container(parent) {
   this.children = [];
 
   this.resolver = parent && parent.resolver || function() {};
+  this.fallbackResolver = parent && parent.fallbackResolver || function() {};
 
   this.registry = new InheritingDict(parent && parent.registry);
   this.cache = new InheritingDict(parent && parent.cache);
@@ -44,6 +45,12 @@ Container.prototype = {
     @type function
   */
   resolver: null,
+
+  /**
+   @property fallbackResolver
+   @type function
+   */
+  fallbackResolver: null,
 
   /**
     @property registry
@@ -204,6 +211,25 @@ Container.prototype = {
     // the twitter factory is added to the module system
     container.resolve('api:twitter') // => Twitter
     ```
+
+    If you want the registry to take prioriy, but to provide a resolver
+    for anything not found in the registry, set fallbackResolver instead:
+
+    ```javascript
+   var container = new Container();
+   container.fallbackResolver = function(fullName) {
+      // lookup via the module system of choice
+    };
+
+   // the twitter factory is added to the module system
+   container.resolve('api:twitter') // => Twitter
+
+   // overridden by explicit registration
+   container.register('api:twitter', AltTwitter);
+   container.resolve('api:twitter') // => AltTwitter
+
+   ```
+
 
     @method resolve
     @param {String} fullName
@@ -612,7 +638,9 @@ function resolve(container, normalizedName) {
   var cached = container.resolveCache.get(normalizedName);
   if (cached) { return cached; }
 
-  var resolved = container.resolver(normalizedName) || container.registry.get(normalizedName);
+  var resolved = container.resolver(normalizedName)
+      || container.registry.get(normalizedName)
+      || container.fallbackResolver(normalizedName);
   container.resolveCache.set(normalizedName, resolved);
 
   return resolved;
